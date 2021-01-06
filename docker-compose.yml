@@ -1,0 +1,81 @@
+# Версия docker-compose
+version: '3.6'
+
+# Создаем общую сеть "stmt-network" для всех контейнеров
+networks:
+  stmt-network:
+    driver: bridge
+
+# Создаем отдельные контейнеры
+services:
+
+  # MySQL
+  database:
+    image: "mysql:5.7"
+    restart: always
+    # Показываем наружу 3306 порт
+    ports:
+      - "3306:3306"
+    # Подключаем к общей сети с другими контейнерами
+    networks:
+      - stmt-network
+    volumes:
+      - /srv/docker/mysql:/var/lib/mysql
+      - /srv/docker/logs/mysql:/var/log/mysql
+    env_file:
+     - database-variables.env
+
+  # MySQL Test
+  testdb:
+    image: "mysql:5.7"
+    restart: always
+    # Показываем наружу 3306 порт
+    ports:
+      - "3316:3306"
+    # Подключаем к общей сети с другими контейнерами
+    networks:
+      - stmt-network
+    volumes:
+      - /srv/docker/mysqltest:/var/lib/mysql
+      - /srv/docker/logs/mysqltest:/var/log/mysql
+    env_file:
+     - testdb-variables.env
+
+  # NGINX
+  nginx:
+    image: "nginx:latest"
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    # Подключаем к общей сети с другими контейнерами
+    networks:
+      - stmt-network
+    volumes:
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+      - ./docker/logs/nginx:/var/log/nginx
+      - ./application:/var/www/html
+    # nginx должен общаться с web контейнером
+    links:
+      # используется в stmt-dev.conf строчка fastcgi_pass web:9000;
+      - "web"
+
+  # Контейнер с веб-приложением (Yii2 + PHP7.4)
+  web:
+    # у нас свой образ для PHP, указываем путь к нему и говорим что его надо собрать
+    build: ./docker/web/build-image
+    volumes:
+      - ./application:/var/www/html
+      - ./docker/web/php/local.ini:/usr/local/etc/php/conf.d/zz99-local.ini
+    networks:
+      - stmt-network
+    links:
+      # используется common/config/main-local.php в mysql:host=database;
+      - "database"
+      - "testdb"
+    depends_on:
+      - database
+      - testdb
+    working_dir: /var/www/html
+    environment:
+      PHP_IDE_CONFIG: "serverName=Docker"
