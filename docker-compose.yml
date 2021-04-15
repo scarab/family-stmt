@@ -59,6 +59,7 @@ services:
     links:
       # используется в stmt-dev.conf строчка fastcgi_pass web:9000;
       - "web"
+#    command: [nginx-debug, '-g', 'daemon off;']
 
   # Контейнер с веб-приложением (Yii2 + PHP7.4)
   web:

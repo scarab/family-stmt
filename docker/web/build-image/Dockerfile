@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
         wget \
         git \
         zip \
+        locales \
         unzip
 
 # Добавим расширения для PHP
